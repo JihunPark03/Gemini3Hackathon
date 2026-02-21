@@ -1,0 +1,5 @@
+{
+  "name": "AURA: Ship Emergency Protocol",
+  "description": "A high-stakes terminal-based game where you must work with the ship's AI to fix critical failures before time runs out.",
+  "requestFramePermissions": []
+}

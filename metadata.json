@@ -1,0 +1,5 @@
+{
+  "name": "AURA Emergency Protocol",
+  "description": "A 2D top-down game where you play as an engineer trying to fix critical ship systems by interacting with an AI terminal.",
+  "requestFramePermissions": []
+}

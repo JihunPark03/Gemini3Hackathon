@@ -201,7 +201,18 @@ export default function App() {
     return null;
   };
 
+  // Keep diagnostic panel in sync with latest focused system data
+  useEffect(() => {
+    if (!currentSystemData) return;
+    const sys = currentSystemData.system || currentSystemData.name;
+    const status = currentSystemData.status;
+    if (sys && status) {
+      updateSystemStatus(String(sys), String(status));
+    }
+  }, [currentSystemData]);
+
   const startGame = async () => {
+    if (!difficulty) return; // must pick a difficulty before starting
     setLoading(true);
     setGameStarted(true);
     setGameActive(true);
@@ -279,7 +290,7 @@ export default function App() {
 
     try {
       const stream = await chatRef.current.sendMessageStream({ 
-        message: `USER COMMAND: ${userMsg}. (Time remaining: ${timeLeft}s, Difficulty: ${difficulty}).` 
+        message: `USER COMMAND: ${userMsg}. (Time remaining: ${timeLeft}s, Difficulty: ${difficulty ?? 'STANDARD'}).` 
       });
       
       // Add an empty model message to start streaming into
@@ -358,6 +369,9 @@ export default function App() {
             <Clock className="w-4 h-4" />
             <span className="text-xl font-bold tabular-nums">{formatTime(timeLeft)}</span>
           </div>
+          <span className="text-[10px] px-3 py-2 rounded-md border border-white/10 bg-white/5 uppercase tracking-widest">
+            {difficulty ?? 'Select Level'}
+          </span>
           <button
             type="button"
             onClick={() => setVoiceEnabled((v) => {
@@ -400,9 +414,34 @@ export default function App() {
                     The ship's core systems are destabilizing. You must interface with AURA to identify and resolve 3 critical errors before hull collapse.
                   </p>
                 </div>
+                <div className="flex flex-col items-center gap-3 bg-black/60 border border-[#00ff41]/20 px-4 py-3 rounded-lg">
+                  <span className="text-xs uppercase tracking-widest opacity-70">Select Difficulty</span>
+                  <div className="flex gap-2">
+                    {(['EASY', 'STANDARD', 'HARD'] as const).map((level) => (
+                      <button
+                        key={level}
+                        type="button"
+                        onClick={() => setDifficulty(level)}
+                        className={cn(
+                          "px-3 py-1 text-[11px] rounded border transition-colors",
+                          difficulty === level
+                            ? "bg-[#00ff41]/20 border-[#00ff41]/50 text-[#00ff41]"
+                            : "bg-white/5 border-white/10 text-white/70 hover:border-[#00ff41]/30"
+                        )}
+                      >
+                        {level}
+                      </button>
+                    ))}
+                  </div>
+                  {!difficulty && <span className="text-[11px] text-yellow-400">Choose a level to begin.</span>}
+                </div>
                 <button 
                   onClick={startGame}
-                  className="px-8 py-3 bg-[#00ff41] text-black font-bold rounded-md hover:bg-[#00ff41]/80 transition-colors active:scale-95"
+                  disabled={!difficulty || loading}
+                  className={cn(
+                    "px-8 py-3 bg-[#00ff41] text-black font-bold rounded-md transition-colors active:scale-95",
+                    (!difficulty || loading) ? "opacity-40 cursor-not-allowed" : "hover:bg-[#00ff41]/80"
+                  )}
                 >
                   INITIALIZE EMERGENCY LINK
                 </button>
@@ -570,31 +609,41 @@ export default function App() {
 
           {/* Status Panel */}
           <div className="p-6 bg-black/40 border border-[#00ff41]/20 rounded-xl terminal-glow">
-            <h3 className="text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Shield className="w-3 h-3" /> System Diagnostics
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                <Shield className="w-3 h-3" /> System Diagnostics
+              </h3>
+              <span className="text-[10px] px-2 py-0.5 rounded bg-white/5 border border-white/10 uppercase tracking-widest">
+                Difficulty: {difficulty ?? 'Select Level'}
+              </span>
+            </div>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4 text-yellow-500" />
-                  <span className="text-xs">Power Grid</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/30">UNSTABLE</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Navigation className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs">Navigation</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/30">CORRUPT</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-emerald-500" />
-                  <span className="text-xs">Life Support</span>
-                </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-red-500/20 text-red-500 border border-red-500/30">LEAKING</span>
-              </div>
+              {['PROPULSION', 'LIFE SUPPORT', 'NAVIGATION'].map((system) => {
+                const status = (systemStatuses[system] || 'UNKNOWN').toUpperCase();
+                const isResolved = status === 'RESOLVED' || status === 'OK';
+                return (
+                  <div key={system} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {system === 'NAVIGATION' ? (
+                        <Navigation className="w-4 h-4 text-blue-500" />
+                      ) : (
+                        <Zap className="w-4 h-4 text-yellow-500" />
+                      )}
+                      <span className="text-xs">{system}</span>
+                    </div>
+                    <span
+                      className={cn(
+                        "text-[10px] px-2 py-0.5 rounded border",
+                        isResolved
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          : "bg-red-500/20 text-red-400 border-red-500/30"
+                      )}
+                    >
+                      {status}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
